@@ -1,9 +1,9 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+  /* font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
     "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  /* font-family: AmazonEmber, Helvetica, sans-serif; */
+    sans-serif; */
+    font-size: ;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -27,7 +27,3 @@ p {
 ::-webkit-scrollbar-track {
   background: hsla(0, 0%, 100%, 0.1);
 }
-
-/* #ccp-container iframe {
-  display: none;
-} */

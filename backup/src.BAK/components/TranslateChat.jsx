@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 import translateText from "../assets/translateText";
 
 function TranslateChat() {
+  const isLoaded = window.connect && window.connect.ChatSession;
+  const connect = window.connect;
   // function sendMessage(content) {}
   const [messages, setMessages] = useState([]);
   useEffect(() => {
-    const receivedMessages = ["comment vas-tu"];
+    const receivedMessages = ["comment vas-tu", "hola"];
     var messagesToAdd = [];
     receivedMessages.map(async (message) => {
       const translateObj = new translateText(message, "auto", "en");
@@ -19,6 +21,10 @@ function TranslateChat() {
       });
     });
   }, []);
+  useEffect(() => {
+    console.log("CHAT ===> ", connect.ChatSession);
+  }, []);
+
   return (
     <div className="TranslateChat">
       <div

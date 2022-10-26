@@ -1,31 +1,32 @@
-import { useRef } from "react";
 import { useEffect, useState } from "react";
 import translateText from "./assets/translateText";
 import Chatroom from "./components/Chatroom";
 // import SubscribeConnectEvents from "./assets/SubscribeConnectEvents";
 // import TranslateChat from "./components/TranslateChat";
 import {
-  addChat,
-  addConnectedContacts,
-  addEndedContacts,
   addNewChatMsg,
+  // addChat,
   setCurrentContactId,
   setCustomerLanguage,
+  useChatMessages,
   useGlobalState,
-  useLocalStorage,
 } from "./hooks/state";
+
+// function addNewChatMsg(newMsg) {
+//   addChat((prevMsg) => [...prevMsg, newMsg]);
+// }
 
 function App() {
   const connect = window.connect;
   // useEffect(() => {}, [connect]);
   return (
-    <div className="App">
+    <div>
       {connect ? (
-        <>
+        <div className="container" style={{ display: "flex", gap: 10 }}>
           <CCP />
           {/* <TranslateChat /> */}
           {/* <TranslateText text={'hola'} lang={'en'} /> */}
-        </>
+        </div>
       ) : (
         ""
       )}
@@ -35,7 +36,11 @@ function App() {
 
 function CCP() {
   const [agentChatSessionState, setAgentChatSessionState] = useState([]);
-  const [agentLanguages] = useGlobalState("agentLanguages");
+  const currentContactId = useGlobalState("currentContactId");
+  const [chatMessages] = useChatMessages(currentContactId[0]);
+  // useEffect(() => {
+  //   console.log(chatMessages);
+  // }, [chatMessages]);
   // *******
   // Subscribe to the chat session
   // *******
@@ -59,8 +64,7 @@ function CCP() {
                 messageData.data.Content,
                 messageData.data.Type,
                 messageData.data.ContactId,
-                "agent",
-                messageData
+                "agent"
               );
             } else {
               console.log(
@@ -71,8 +75,7 @@ function CCP() {
                 messageData.data.Content,
                 messageData.data.Type,
                 messageData.data.ContactId,
-                "customer",
-                messageData
+                "customer"
               );
             }
           }
@@ -82,22 +85,15 @@ function CCP() {
   // *******
   // Processing the incoming chat from the Customer
   // *******
-  async function processChatText(
-    content,
-    type,
-    contactId,
-    msgAuthor,
-    messageData
-  ) {
+  async function processChatText(content, type, contactId, msgAuthor) {
     // setLanguageTranslate(languageTranslate);
-    const agentLang = JSON.parse(localStorage.getItem("currentAgentLanguage"));
-    // console.log(Object.values(agentLanguages), agentLang);
+
     let translatedMessage = await new translateText(
       content,
       "auto",
-      Object.values(agentLanguages).includes(agentLang) ? agentLang : "en"
+      "en"
     ).getTranslatedText();
-    // console.log(currentAgentLanguage[0]);
+
     console.log(
       `CDEBUG ===>  [${msgAuthor}] Original Message: ` +
         content +
@@ -110,22 +106,39 @@ function CCP() {
       msgAuthor: msgAuthor,
       content: content,
       translatedMessageData: translatedMessage,
-      messageId: messageData.data.Id,
-      timestamp: messageData.data.AbsoluteTime,
     };
-    // Add the new message to the store
-    // addChat((prevMsg) => [...prevMsg, newMsg]);
+    // Add the new message to the storefunction addNewChatMsg(newMsg) {
+    // const prevChatMessages = chatMessages;
+    // prevChatMessages.push(newMsg);
+    // console.log(contactId);
+    // localStorage.setItem(
+    //   `chatMessages-${contactId}`,
+    //   JSON.stringify(prevChatMessages)
+    // );
     addNewChatMsg(newMsg);
-    // if (msgAuthor === "customer") {
-    //   setCustomerLanguage(translatedMessage.SourceLanguageCode);
-    // }
+    // console.log("OLD CHAT MESSAGES =>", chatMessages, [
+    //   ...chatMessages,
+    //   newMsg,
+    // ]);
+    // setChatMessages([newMsg]);
+
+    if (msgAuthor === "customer") {
+      setCustomerLanguage(translatedMessage.SourceLanguageCode || "en");
+    }
   }
 
   function subscribeConnectEvents() {
     window.connect.core.onViewContact(function (event) {
       var contactId = event.contactId;
-      setCurrentContactId(contactId);
+      // var contactChats = [];
+      // chatMessages.map((chat) => {
+      //   if (chat.msgAuthor === "customer" && chat.contactId === contactId) {
+      //     contactChats.push(chat.translatedMessageData.SourceLanguageCode);
+      //   }
+      // });
+      // setCustomerLanguage(contactChats[contactChats.length - 1] || "en");
       console.log("CDEBUG ===> onViewContact", contactId);
+      setCurrentContactId(contactId);
     });
 
     // If this is a chat session
@@ -160,27 +173,10 @@ function CCP() {
         });
 
         contact.onConnected(async () => {
-          setCurrentContactId(contact.contactId);
           console.log(
             "CDEBUG ===> onConnected() >> contactId: ",
             contact.contactId
           );
-
-          addConnectedContacts((prevContacts) => [
-            ...prevContacts,
-            contact.contactId,
-          ]);
-
-          addEndedContacts((prevContacts) => {
-            var newContacts = [...prevContacts];
-            // console.log(newContacts);
-            newContacts = newContacts.filter(
-              (item) => item !== contact.contactId
-            );
-            // console.log(newContacts);
-            return newContacts;
-          });
-
           const cnn = contact
             .getConnections()
             .find(
@@ -189,6 +185,7 @@ function CCP() {
           const agentChatSession = await cnn.getMediaController();
           let contactAttributes = contact; // - customer details
           console.log(contactAttributes);
+          setCurrentContactId(contact.contactId);
           setAgentChatSessionState((agentChatSessionState) => [
             ...agentChatSessionState,
             { [contact.contactId]: agentChatSession },
@@ -201,14 +198,6 @@ function CCP() {
             "CDEBUG ===> onEnded() >> contactId: ",
             contact.contactId
           );
-
-          addEndedContacts((prevContacts) => [
-            ...prevContacts,
-            contact.contactId,
-          ]);
-          localStorage.removeItem("chatMessages-" + contact.contactId);
-          var event = new Event("newChatMessage");
-          document.dispatchEvent(event);
         });
 
         // This is invoked when the agent moves out of ACW to a different state
@@ -218,7 +207,7 @@ function CCP() {
             contact.contactId
           );
           setCurrentContactId(null);
-          // setCustomerLanguage("en");
+          setCustomerLanguage("en");
         });
       });
 
@@ -239,79 +228,50 @@ function CCP() {
     }
   }
 
-  const ccpContainerRef = useRef();
-
   // *****
   // Loading CCP
   // *****
   useEffect(() => {
     const connectUrl = "https://avran.my.connect.aws/ccp-v2/";
-    // window.connect.agentApp.initApp("ccp", "ccp-container", connectUrl, {
-    //   ccpParams: {
-    //     loginPopup: true, // optional, defaults to `true`
-    //     loginPopupAutoClose: true, // optional, defaults to `true`
-    //     loginOptions: {
-    //       // optional, if provided opens login in new window
-    //       autoClose: true, // optional, defaults to `false`
-    //       height: 600, // optional, defaults to 578
-    //       width: 380, // optional, defaults to 433
-    //       top: 0, // optional, defaults to 0
-    //       left: 0, // optional, defaults to 0
-    //     },
-    //     region: "eu-west-2",
-    //     pageOptions: {
-    //       // optional
-    //       enableAudioDeviceSettings: true, // optional, defaults to 'false'
-    //       enablePhoneTypeSettings: true, // optional, defaults to 'true'
-    //     },
-    //     softphone: {
-    //       // optional
-    //       allowFramedSoftphone: true, // optional
-    //       disableRingtone: false, // optional
-    //     },
-    //   },
-    // });
-    window.connect.core.initCCP(ccpContainerRef.current, {
-      ccpUrl: connectUrl, // REQUIRED
-      loginPopup: true, // optional, defaults to `true`
-      loginPopupAutoClose: true, // optional, defaults to `true`
-      loginOptions: {
-        // optional, if provided opens login in new window
-        autoClose: true, // optional, defaults to `false`
-        height: 600, // optional, defaults to 578
-        width: 380, // optional, defaults to 433
-        top: 0, // optional, defaults to 0
-        left: 0, // optional, defaults to 0
-      },
-      region: "eu-west-2", // REQUIRED for `CHAT`, optional otherwise
-      softphone: {
-        // optional
-        allowFramedSoftphone: true, // optional
-        disableRingtone: false, // optional
-      },
-      pageOptions: {
-        //optional
-        enableAudioDeviceSettings: true, //optional, defaults to 'false'
-        enablePhoneTypeSettings: true, //optional, defaults to 'true'
+    window.connect.agentApp.initApp("ccp", "ccp-container", connectUrl, {
+      ccpParams: {
+        loginPopup: true, // optional, defaults to `true`
+        loginPopupAutoClose: true, // optional, defaults to `true`
+        loginOptions: {
+          // optional, if provided opens login in new window
+          autoClose: true, // optional, defaults to `false`
+          height: 600, // optional, defaults to 578
+          width: 380, // optional, defaults to 433
+          top: 0, // optional, defaults to 0
+          left: 0, // optional, defaults to 0
+        },
+        region: "eu-west-2",
+        pageOptions: {
+          // optional
+          enableAudioDeviceSettings: true, // optional, defaults to 'false'
+          enablePhoneTypeSettings: true, // optional, defaults to 'true'
+        },
+        softphone: {
+          // optional
+          allowFramedSoftphone: true, // optional
+          disableRingtone: false, // optional
+        },
       },
     });
-
     subscribeConnectEvents();
   }, []);
 
   return (
-    <div className="CCP">
-      <div className="d-flex gap-3">
-        <div
-          ref={ccpContainerRef}
-          id="ccp-container"
-          style={{ width: 380, height: 600 }}
-        ></div>
-        <div id="chatroom" style={{ width: 380, height: 600 }}>
+    <main>
+      <div style={{ display: "flex", gap: 10 }}>
+        {/* CCP window will load here */}
+        <div id="ccp-container" style={{ width: 380, height: 600 }}></div>
+        {/* Translate window will laod here. We pass the agent state to be able to use this to push messages to CCP */}
+        <div id="chatroom">
           <Chatroom session={agentChatSessionState} />{" "}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
