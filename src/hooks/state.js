@@ -87,6 +87,7 @@ const { setGlobalState, useGlobalState } = createGlobalState({
   agentLanguages: {
     English: "en",
     Spanish: "es",
+    Hindi: "hi",
     "Chinese (Simplified)": "zh",
   },
 });
